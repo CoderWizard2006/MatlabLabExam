@@ -1,0 +1,79 @@
+%% WEEK 10 PART 1: DTFS MASTER SOLVER WITH RECONSTRUCTION
+% 1. Defines Signal x[n]
+% 2. Calculates Coefficients Dr
+% 3. Reconstructs Signal from Dr to verify accuracy
+clc; clear; close all;
+
+% =========================================================================
+% [1] INPUT SECTION (EDIT THIS PART)
+% =========================================================================
+
+% >> OPTION 1: MAIN EXAMPLE (Page 1 Square Wave)
+% N0 = 32;               
+% n = 0 : N0-1;          
+% x_n = [ones(1,5), zeros(1,23), ones(1,4)]; 
+
+% >> OPTION 2: EXPONENTIAL (Ex 4e)
+N0 = 5;
+n = 0 : N0-1;
+x_n = (0.707).^n;
+
+% =========================================================================
+% [2] ANALYSIS: FIND COEFFICIENTS (Dr)
+% =========================================================================
+Dr = zeros(1, N0);
+fprintf('Calculating Dr Coefficients...\n');
+
+for r = 0 : N0-1
+    % Analysis Equation: (1/N) * Sum( x[n] * e^(-j*r*2pi/N * n) )
+    term = x_n .* exp(-1j * r * (2*pi/N0) * n);
+    Dr(r+1) = (1/N0) * sum(term);
+end
+
+% =========================================================================
+% [3] SYNTHESIS: RECREATE SIGNAL FROM COEFFICIENTS
+% =========================================================================
+fprintf('Reconstructing Signal from Dr...\n');
+x_recon = zeros(size(n));
+
+for r = 0 : N0-1
+    % Synthesis Equation: Sum( Dr * e^(j*r*2pi/N * n) )
+    % We sum up the contribution of every harmonic 'r'
+    harmonic_component = Dr(r+1) * exp(1j * r * (2*pi/N0) * n);
+    x_recon = x_recon + harmonic_component;
+end
+
+% Note: x_recon might have tiny imaginary parts due to computer error.
+% We take real(x_recon) to clean it up.
+
+% =========================================================================
+% [4] PLOTTING (Comparison)
+% =========================================================================
+figure('Name', 'DTFS Verification', 'Color', 'w');
+
+% Plot 1: Original Signal
+subplot(2,2,1); 
+stem(n, x_n, 'b', 'filled', 'LineWidth', 1.5); grid on;
+title('1. Original Signal x[n]'); xlabel('n'); ylabel('Amp');
+xlim([-1 N0]);
+
+% Plot 2: Magnitude Spectrum
+subplot(2,2,2); 
+stem(0:N0-1, abs(Dr), 'k', 'filled', 'LineWidth', 1.5); grid on;
+title('2. Magnitude Spectrum |Dr|'); xlabel('Harmonic r');
+xlim([-1 N0]);
+
+% Plot 3: Reconstructed Signal (The Proof)
+subplot(2,1,2); 
+stem(n, real(x_recon), 'r', 'filled', 'LineWidth', 1.5); grid on;
+title('3. Reconstructed Signal (From Dr)'); 
+xlabel('n'); ylabel('Amp');
+xlim([-1 N0]);
+
+% Verification Message
+error_val = max(abs(x_n - real(x_recon)));
+if error_val < 1e-10
+    fprintf('\nSUCCESS: Reconstructed signal matches Original perfectly!\n');
+else
+    fprintf('\nWARNING: There is a mismatch error of %.4e\n', error_val);
+end

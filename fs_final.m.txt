@@ -1,0 +1,123 @@
+%% WEEK 7: ULTIMATE FOURIER SOLVER (Solves Everything)
+% This code calculates Coefficients, Plots Spectra, Reconstructs the Signal,
+% AND plots individual harmonics (Exercise 2).
+clc; clear; close all;
+
+% =========================================================================
+% [1] USER SETTINGS (EDIT THIS SECTION ONLY)
+% =========================================================================
+
+% --- A. SET PERIOD & HARMONICS ---
+T0 = 2;       % Period (e.g., pi, 2*pi, 2, 5)
+N  = 15;         % Number of Harmonics to calculate (Question asks for 5 or 10)
+
+% --- B. CHOOSE INTEGRATION MODE ---
+% Mode 1: [0 to T]      -> Use for Main Example, Q7A, Q7C, Square Wave
+% Mode 2: [-T/2 to T/2] -> Use for Q7B (Parabola), Centered Triangles
+Range_Mode = 2; 
+
+% --- C. DEFINE SIGNAL EQUATION ---
+% Examples:
+% Mode 1 (0 to pi):  signal_eqn = @(t) exp(-t/2);
+% Mode 1 (0 to 2pi): signal_eqn = @(t) (t<pi).*exp(-t/10) + (t>=pi).*-exp(-(t-pi)/10);
+% Mode 2 (-1 to 1):  signal_eqn = @(t) t.^2;  (For Q7B)
+
+signal_eqn = @(t) t.^2; % <--- EDIT THIS EQUATION
+
+% =========================================================================
+% [2] CALCULATION ENGINE (Do not touch)
+% =========================================================================
+w0 = (2*pi)/T0;   % Fundamental Freq
+dt = T0/2000;     % High precision step
+
+% Set Integration Limits based on Mode
+if Range_Mode == 1
+    t_start = 0; t_end = T0;
+    label_mode = 'Standard [0 to T]';
+else
+    t_start = -T0/2; t_end = T0/2;
+    label_mode = 'Symmetric [-T/2 to T/2]';
+end
+
+t = t_start : dt : t_end; 
+y = signal_eqn(t);
+
+% Initialize
+an = zeros(1, N); bn = zeros(1, N); cn = zeros(1, N); theta = zeros(1, N);
+
+% 1. DC Component
+a0 = (1/T0) * trapz(t, y);
+
+% 2. Harmonics
+for k = 1:N
+    an(k) = (2/T0) * trapz(t, y .* cos(k * w0 * t));
+    bn(k) = (2/T0) * trapz(t, y .* sin(k * w0 * t));
+    cn(k) = sqrt(an(k)^2 + bn(k)^2);
+    theta(k) = atan2(-bn(k), an(k));
+end
+
+% Prepare Data
+freq_index = 0:N;
+Cn_plot = [a0, cn];
+Theta_plot = [0, theta];
+
+% =========================================================================
+% [3] OUTPUT: WRITE THESE VALUES ON EXAM PAPER
+% =========================================================================
+fprintf('\n=================================================\n');
+fprintf(' RESULTS (Range Mode: %s)\n', label_mode);
+fprintf('=================================================\n');
+fprintf('DC Component (a0) = %.4f\n', a0);
+fprintf('-------------------------------------------------\n');
+fprintf(' n |    an     |    bn     |    Cn (Mag)   |  Theta (rad)\n');
+fprintf('---|-----------|-----------|---------------|--------------\n');
+for k = 1:N
+    fprintf('%2d | %8.4f  | %8.4f  |  %8.4f     | %8.4f\n', ...
+        k, an(k), bn(k), cn(k), theta(k));
+end
+
+% =========================================================================
+% [4] FIGURE 1: SPECTRA & RECONSTRUCTION (For Q1, Q7)
+% =========================================================================
+figure('Name', 'Analysis Results', 'Color', 'k');
+
+% Magnitude Spectrum
+subplot(2,2,1);
+stem(freq_index, Cn_plot, 'filled', 'g', 'LineWidth', 1.5);
+title('Magnitude Spectrum (|Cn|)'); xlabel('n'); grid on;
+
+% Phase Spectrum
+subplot(2,2,2);
+stem(freq_index, Theta_plot, 'filled', 'r', 'LineWidth', 1.5);
+title('Phase Spectrum (Theta)'); xlabel('n'); grid on;
+
+% Reconstruction (Verification)
+t_plot = -T0 : dt : 2*T0; % Plot wider to see repetition
+y_recon = a0 * ones(size(t_plot));
+for k = 1:N
+    y_recon = y_recon + an(k)*cos(k*w0*t_plot) + bn(k)*sin(k*w0*t_plot);
+end
+
+subplot(2,1,2);
+plot(t_plot, y_recon, 'w', 'LineWidth', 1.5); hold on;
+xline(t_start, 'r--'); xline(t_end, 'r--'); % Show Integration Range
+title(['Reconstructed Signal (Using ' num2str(N) ' Harmonics)']); 
+grid on; xlabel('Time (s)');
+
+% =========================================================================
+% [5] FIGURE 2: INDIVIDUAL HARMONICS (For Exercise 2)
+% =========================================================================
+figure('Name', 'Individual Harmonics Breakdown', 'Color', 'k');
+plot(t_plot, a0 * ones(size(t_plot)), 'k--', 'LineWidth', 1.5, 'DisplayName', 'DC (a0)');
+hold on;
+
+colors = jet(min(N, 7)); % Auto-generate colors
+for k = 1:min(N, 5) % Plot first 5 harmonics distinctively
+    harm = an(k)*cos(k*w0*t_plot) + bn(k)*sin(k*w0*t_plot);
+    plot(t_plot, harm, 'LineWidth', 1.2, 'Color', colors(k,:), ...
+        'DisplayName', ['Harmonic ' num2str(k)]);
+end
+plot(t_plot, y_recon, 'r', 'LineWidth', 2.5, 'DisplayName', 'Total Sum');
+title('Exercise 2: Individual Harmonics & Total Sum');
+xlabel('Time (t)'); grid on; legend('show', 'Location', 'bestoutside');
+xlim([-T0/2, 2*T0]);

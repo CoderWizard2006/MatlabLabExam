@@ -1,0 +1,117 @@
+%% WEEK 7 - Q6: MASTER SIGNAL ANALYZER (Final Version)
+clc; clear; close all;
+
+% =========================================================================
+% [1] INPUT SECTION (Type your signal exactly here)
+% =========================================================================
+syms t; 
+
+% --- TYPE YOUR EQUATION BELOW ---
+% Try: 2*sin(3*t) + 3*sin(t)
+% Try: (3*sin(2*t) + sin(5*t))^2
+% Try: sin(3*t) + cos((15*t)/4)
+
+x = 2*sin(3*t) + 3*sin(t);
+
+% =========================================================================
+% [2] AUTOMATIC PROCESSING (Do not edit)
+% =========================================================================
+fprintf('--------------------------------------------------\n');
+fprintf('ANALYZING SIGNAL:\n');
+disp(x);
+
+% STEP 1: The "Golden Command" - Force into simple sin/cos sums
+% This fixes the issue where sin(3t) was breaking.
+x_clean = combine(x, 'sincos'); 
+
+fprintf('Simplified Form (Linear Combinations):\n');
+disp(x_clean);
+
+% STEP 2: Extract Frequencies using Text Scanning
+str_x = string(x_clean);
+
+% Regular Expression to find anything inside sin(...) or cos(...)
+% This finds "3*t", "t", "(15*t)/4", etc.
+patterns = regexp(str_x, '(sin|cos)\(([^)]+)\)', 'tokens');
+
+w_vals = [];
+
+if isempty(patterns)
+    fprintf('No AC components found (DC signal only or constant).\n');
+else
+    for i = 1:length(patterns)
+        % Get the math inside the brackets (e.g., "3*t" or "(15*t)/4")
+        inner_math = patterns{i}{2};
+        
+        % Convert string back to symbolic math to solve it
+        try
+            arg_sym = str2sym(inner_math);
+            
+            % MATHEMATICAL TRICK: Differentiate with respect to t
+            % d/dt(3*t) = 3.   d/dt(pi*t) = pi.
+            w_val = double(abs(diff(arg_sym, t)));
+            
+            % Avoid duplicates and ignore 0
+            if w_val > 0.0001
+                w_vals = [w_vals, w_val];
+            end
+        catch
+            % Skip if parsing fails
+        end
+    end
+end
+
+% Remove duplicates
+w_vals = unique(w_vals);
+
+if isempty(w_vals)
+    fprintf('\nDetected Frequencies (w): None\n');
+else
+    fprintf('\nDetected Frequencies (w): %s\n', mat2str(w_vals, 4));
+    
+    % =====================================================================
+    % [3] PERIODICITY CHECK
+    % =====================================================================
+    is_periodic = true;
+    w1 = w_vals(1);
+    
+    for k = 2:length(w_vals)
+        ratio = w_vals(k) / w1;
+        [N, D] = rat(ratio, 1e-6);
+        if abs(ratio - N/D) > 1e-5
+            is_periodic = false;
+             fprintf('[!] Check: Ratio w%d/w1 is IRRATIONAL -> Aperiodic\n', k);
+        end
+    end
+    
+    if ~is_periodic
+        fprintf('\n==================================\n');
+        fprintf(' RESULT: APERIODIC SIGNAL \n');
+        fprintf('==================================\n');
+    else
+        % Calculate T0 correctly
+        [~, dens] = rat(w_vals);
+        L = lcm_array(dens);       % Common denominator
+        w_integers = round(w_vals * L); % Scale to integers
+        G = gcd_array(w_integers); % Find GCD
+        w0 = G / L;                % Scale back
+        
+        T0 = (2*pi) / w0;
+        harmonics = round(w_vals / w0);
+        
+        fprintf('\n==================================\n');
+        fprintf(' RESULT: PERIODIC SIGNAL \n');
+        fprintf('==================================\n');
+        fprintf('Fundamental Freq (w0) : %.4f rad/s\n', w0);
+        fprintf('Fundamental Period(T0): %.4f sec\n', T0);
+        fprintf('Harmonics Present     : %s\n', mat2str(harmonics));
+    end
+end
+
+% --- Helper Functions ---
+function g = gcd_array(arr)
+    g = arr(1); for i=2:length(arr), g=gcd(g,arr(i)); end
+end
+function l = lcm_array(arr)
+    l = arr(1); for i=2:length(arr), l=lcm(l,arr(i)); end
+end

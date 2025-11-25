@@ -1,0 +1,138 @@
+%% WEEK 10 PART 2: UNIVERSAL DTFT SOLVER (General Version)
+% MODE 1: Forward DTFT (Signal -> Spectrum) -> Solves Ex 5, 6
+% MODE 2: Inverse DTFT (Spectrum -> Signal) -> Solves Ex 4
+% MODE 3: System Response (Input + System -> Output) -> Solves Ex 2
+
+clc; clear; close all;
+
+% =========================================================================
+% [1] SELECT MODE (Change this to 1, 2, or 3)
+% =========================================================================
+MODE = 3; 
+
+% =========================================================================
+% [2] INPUTS (EDIT THE SECTION MATCHING YOUR MODE)
+% =========================================================================
+
+% -------------------------------------------------------------------------
+% IF MODE 1: FORWARD DTFT (Find Spectrum of a Signal)
+% -------------------------------------------------------------------------
+if MODE == 1
+    % 1. Define Time Range (n)
+    % Example: 0:10 for exponentials, -5:5 for centered pulses
+    n = 0:10; 
+    
+    % 2. Define Signal x[n]
+    % Option A: Math Formula (Use dots .^ .*)
+    % x_n = (-0.8).^n .* (n>=0); 
+    
+    % Option B: Manual Sequence (e.g., Triangle [1 2 3 2 1])
+    % Note: Make sure 'n' matches the length of your sequence!
+    % n = -2:2; x_n = [1, 2, 3, 2, 1];
+
+    % ACTIVE SIGNAL:
+    x_n = (0.707).^n; 
+end
+
+% -------------------------------------------------------------------------
+% IF MODE 2: INVERSE DTFT (Find Signal from Spectrum)
+% -------------------------------------------------------------------------
+if MODE == 2
+    % 1. Define Spectrum Equation X(w) using '@(w)'
+    % Use 'w' for Omega. 
+    % Example A: Rectangular Pulse width pi/4 (Ex 4a)
+    % my_spectrum = @(w) (abs(w) <= pi/4) .* 1;
+    
+    % Example B: Shifted/Bandpass (Ex 4b)
+    % my_spectrum = @(w) (abs(w) >= pi/4 & abs(w) <= 3*pi/4) .* 1;
+
+    % ACTIVE SPECTRUM:
+    my_spectrum = @(w) (abs(w) <= pi/4) .* 1;
+end
+
+% -------------------------------------------------------------------------
+% IF MODE 3: SYSTEM RESPONSE (Find Output y[n])
+% -------------------------------------------------------------------------
+if MODE == 3
+    % 1. Define Input Signal x[n]
+    n = 0:20;
+    x_n = (0.707).^n;  % Example input (or use Unit Step (n>=0))
+
+    % 2. Define System Transfer Function H(w) using '@(w)'
+    % Note: exp(1j*w) is usually written as 'E' or 'z' in PDF.
+    % Ex 2: H(E) = 1 / (E - 0.0591) -> 1 ./ (exp(1j*w) - 0.0591)
+    
+    %H_func = @(w) 1 ./ (exp(1j*w) - 0.0591);
+    H_func = @(w) exp(1j*w) ./ (exp(1j*w).^2 + exp(1j*w) + 5);
+end
+
+% =========================================================================
+% [3] CALCULATION ENGINE (DO NOT TOUCH)
+% =========================================================================
+w = -pi : 0.01 : pi; % Frequency Axis (-pi to pi)
+
+% --- MODE 1: FORWARD DTFT ---
+if MODE == 1
+    fprintf('Calculating DTFT (Spectrum)...\n');
+    X_w = zeros(size(w));
+    for k = 1:length(w)
+        X_w(k) = sum(x_n .* exp(-1j * w(k) * n));
+    end
+    
+    % Reconstruction Check
+    n_rec = min(n):max(n); x_rec = zeros(size(n_rec));
+    for k = 1:length(n_rec)
+        x_rec(k) = (1/(2*pi)) * trapz(w, X_w .* exp(1j * w * n_rec(k)));
+    end
+    
+    % Plotting
+    figure('Name', 'Mode 1: DTFT Analysis', 'Color', 'w');
+    subplot(2,2,1); stem(n, x_n, 'b', 'filled'); grid on; title('x[n]'); xlabel('n');
+    subplot(2,2,2); plot(w/pi, abs(X_w), 'k', 'LineWidth', 2); grid on; title('|X(\Omega)|'); xlabel('\Omega (\times\pi)');
+    subplot(2,2,3); plot(w/pi, angle(X_w), 'm', 'LineWidth', 2); grid on; title('\angle X(\Omega)'); xlabel('\Omega (\times\pi)');
+    subplot(2,2,4); stem(n_rec, real(x_rec), 'r', 'filled'); grid on; title('Reconstruction'); xlabel('n');
+
+% --- MODE 2: INVERSE DTFT ---
+elseif MODE == 2
+    fprintf('Calculating Inverse DTFT (Signal)...\n');
+    X_w = my_spectrum(w);
+    
+    % Inverse DTFT Formula
+    n_plot = -10:10; 
+    x_recon = zeros(size(n_plot));
+    for k = 1:length(n_plot)
+        x_recon(k) = (1/(2*pi)) * trapz(w, X_w .* exp(1j * w * n_plot(k)));
+    end
+    
+    % Plotting
+    figure('Name', 'Mode 2: Inverse DTFT', 'Color', 'w');
+    subplot(2,1,1); plot(w/pi, abs(X_w), 'k', 'LineWidth', 2); grid on;
+    title('Given Spectrum X(\Omega)'); xlabel('\Omega (\times\pi)');
+    subplot(2,1,2); stem(n_plot, real(x_recon), 'b', 'filled'); grid on;
+    title('Recovered Signal x[n]'); xlabel('n');
+
+% --- MODE 3: SYSTEM RESPONSE ---
+elseif MODE == 3
+    fprintf('Calculating System Response y[n]...\n');
+    % 1. Get Input Spectrum X(w)
+    X_w = zeros(size(w));
+    for k = 1:length(w), X_w(k) = sum(x_n .* exp(-1j * w(k) * n)); end
+    
+    % 2. Get System Response H(w)
+    H_w = H_func(w);
+    
+    % 3. Multiply Y(w) = X(w) * H(w)
+    Y_w = X_w .* H_w;
+    
+    % 4. Inverse DTFT to get y[n]
+    y_n = zeros(size(n));
+    for k = 1:length(n)
+        y_n(k) = (1/(2*pi)) * trapz(w, Y_w .* exp(1j * w * n(k)));
+    end
+    
+    % Plotting
+    figure('Name', 'Mode 3: System Response', 'Color', 'w');
+    subplot(3,1,1); stem(n, x_n, 'b', 'filled'); grid on; title('Input x[n]');
+    subplot(3,1,2); plot(w/pi, abs(Y_w), 'm', 'LineWidth', 2); grid on; title('Output Spectrum |Y(\Omega)|');
+    subplot(3,1,3); stem(n, real(y_n), 'r', 'filled'); grid on; title('Output Signal y[n]');
+end

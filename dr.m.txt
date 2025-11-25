@@ -1,0 +1,55 @@
+%% WEEK 10: SYNTHESIS SOLVER (Given Dr -> Find x[n])
+clc; clear; close all;
+
+% =========================================================================
+% [1] INPUT SECTION: ENTER YOUR Dr COEFFICIENTS
+% =========================================================================
+% Instructions:
+% 1. Look at the exam question table or list.
+% 2. Enter the values inside the square brackets [ ].
+% 3. Use 'j' or '1j' for imaginary parts.
+
+% EXAMPLE: Using values from Page 1 Exercise 2 (approximate)
+% Dr = [0, -0.8j, -0.4j, 0.4j, 0.8j];
+
+% TYPE YOURS HERE:
+Dr = [0, -1j*0.872, -1j*0.433, 1j*0.433, 1j*0.872]; 
+
+% =========================================================================
+% [2] CALCULATION (Do not touch)
+% =========================================================================
+N0 = length(Dr);       % The Period is automatically the number of coefficients
+n = 0 : N0-1;          % Time axis
+x_n = zeros(size(n));  % Initialize output
+
+fprintf('Calculating x[n] for Period N0 = %d...\n', N0);
+
+for r = 0 : N0-1
+    % Synthesis Equation: x[n] = Sum( Dr * exp(j*r*2pi/N * n) )
+    % Note: Dr(r+1) is because MATLAB arrays start at index 1, not 0
+    term = Dr(r+1) * exp(1j * r * (2*pi/N0) * n);
+    x_n = x_n + term;
+end
+
+% Remove tiny imaginary errors (computer math dust)
+x_n_real = real(x_n);
+
+% =========================================================================
+% [3] OUTPUT & PLOTTING
+% =========================================================================
+fprintf('\n----------------------------\n');
+fprintf('Calculated Signal Values x[n]:\n');
+disp(x_n_real);
+fprintf('----------------------------\n');
+
+figure('Name', 'Synthesis Results', 'Color', 'w');
+
+% Plot 1: The Coefficients given
+subplot(2,1,1); 
+stem(0:N0-1, abs(Dr), 'k', 'filled'); grid on;
+title('Given Coefficients Magnitude |Dr|'); xlabel('Harmonic r');
+
+% Plot 2: The Resulting Signal
+subplot(2,1,2); 
+stem(n, x_n_real, 'b', 'filled', 'LineWidth', 2); grid on;
+title('Recovered Signal x[n]'); xlabel('n'); ylabel('Amplitude');

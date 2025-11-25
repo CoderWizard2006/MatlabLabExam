@@ -1,0 +1,108 @@
+function reconstruct()
+
+
+clc; clear; close all;
+
+% -----------------------------
+% Discrete-time signal parameters
+% -----------------------------
+N = 11;                 % number of points for one period
+n = 0:N-1;              % discrete-time indices
+
+% Example signal: x[n] = n*u[n] (one period)
+x = n;
+
+% -----------------------------
+% Compute exponential Fourier coefficients Dn
+% -----------------------------
+Dn = zeros(1,N);
+for k = 0:N-1
+    Dn(k+1) = (1/N) * sum(x .* exp(-1j*2*pi*k*n/N));
+end
+
+% -----------------------------
+% Reconstruct x[n] from Dn
+% -----------------------------
+x_recon = zeros(1,N);
+for n_idx = 0:N-1
+    x_recon(n_idx+1) = sum(Dn .* exp(1j*2*pi*(0:N-1)*n_idx/N));
+end
+
+% -----------------------------
+% Plot original and reconstructed signals
+% -----------------------------
+figure;
+stem(n, x, 'b', 'filled'); hold on;
+stem(n, real(x_recon), 'r--', 'filled');
+xlabel('n'); ylabel('Amplitude');
+legend('Original x[n]', 'Reconstructed x[n]');
+title('Reconstruction of x[n] from Exponential Fourier Series Coefficients');
+grid on;
+
+
+
+end
+
+
+
+
+
+
+
+% DISCRETE FOURIER SERIES
+
+function discreteFS()
+
+
+clc; clear; close all;
+
+
+%% Method 1: Direct DTFS Calculation
+
+No = 32;                
+n = 0:No-1;              
+
+% Example signal: rectangular pulse + ones
+xn = [ones(1,5) zeros(1,23) ones(1,4)];
+
+% Preallocate DTFS coefficients
+xr = zeros(1, No);
+
+for r = 0:No-1
+    xr(r+1) = sum(xn .* exp(-1j*r*2*pi/No*n)) / No;
+end
+
+% Plot magnitude and phase
+figure('Name','DTFS: Direct Summation');
+r = 0:No-1;
+subplot(2,1,1);
+stem(r, abs(xr), 'k', 'filled');
+ylabel('|X[r]|'); xlabel('r');
+title('Magnitude of DTFS Coefficients');
+
+xr_round = round(1000*xr)/1000; % remove small computational errors
+subplot(2,1,2);
+stem(r, angle(xr_round), 'k', 'filled');
+ylabel('Angle of X[r] (rad)'); xlabel('r');
+title('Phase of DTFS Coefficients');
+
+
+
+% USING FFT
+
+xr_fft = fft(xn)/No;    % Normalize by period
+
+figure('Name','DTFS: Using FFT');
+subplot(2,1,1);
+stem(r, abs(xr_fft), 'b', 'filled');
+ylabel('|X[r]|'); xlabel('r');
+title('Magnitude via FFT');
+
+subplot(2,1,2);
+stem(r, angle(xr_fft), 'b', 'filled');
+ylabel('Angle of X[r] (rad)'); xlabel('r');
+title('Phase via FFT');
+
+
+
+end

@@ -1,0 +1,121 @@
+%% WEEK 8: FOURIER TRANSFORM MASTER SOLVER
+% Solves Method 1 (Direct FT), Exercise 1 (Inverse FT), and Exercise 2 (System Response)
+clc; clear; close all;
+
+% =========================================================================
+% [1] USER SETTINGS (EDIT THIS SECTION FOR EACH QUESTION)
+% =========================================================================
+
+% --- A. SELECT SIGNAL (Uncomment one or write your own) ---
+% 1. Main Example: e^-t/2 from 0 to pi
+signal_eqn = @(t) (t>=-6*pi & t<=6*pi) .* sin(t)./(t+eps);
+
+% 2. Unit Rectangle (Pulse from -1 to 1)
+% signal_eqn = @(t) (t>=-1 & t<=1) .* 1;
+%signal_eqn = @(t) (t>=-pi & t<=pi) .* sin(t)./(t+eps);
+
+% 3. Unit Triangle (1 - |t| from -1 to 1)
+% signal_eqn = @(t) (abs(t)<=1) .* (1 - abs(t));
+
+% 4. Cosine Pulse (0 to pi/2)
+% signal_eqn = @(t) (t>=0 & t<=pi/2) .* cos(t);
+
+% --- B. TIME & FREQUENCY RANGES ---
+% Adjust 'T_lim' if the signal is very wide.
+T_lim = 10;            % Time range from -10 to 10
+dt = 0.01;             % Time step accuracy
+
+% Adjust 'W_lim' to see more or less frequency details
+W_lim = 20;            % Frequency range from -20 to 20 rad/s
+dw = 0.1;              % Frequency step
+
+% --- C. SYSTEM RESPONSE (For Exercise 2) ---
+% Define Transfer Function H(s). Use 's' variable.
+% Example: H(D) = 1/(D+2)  --> H(s) = 1/(s+2)
+% Set to 1 if not solving Ex 2.
+H_s = @(s) s+1 ./ (s + 2); 
+Solve_System_Response = true; % Set to true for Exercise 2
+
+% =========================================================================
+% [2] COMPUTATION ENGINE (FOURIER TRANSFORM)
+% =========================================================================
+t = -T_lim : dt : T_lim;   % Time Vector
+w = -W_lim : dw : W_lim;   % Frequency Vector
+
+x_t = signal_eqn(t);       % Generate Signal
+
+% --- Forward Fourier Transform (Analysis) ---
+% X(jw) = Integral [ x(t) * exp(-jwt) dt ]
+X_jw = zeros(size(w));
+
+fprintf('Computing Fourier Transform...\n');
+for k = 1:length(w)
+    % Trapezoidal integration for accurate area calculation
+    X_jw(k) = trapz(t, x_t .* exp(-1j * w(k) * t));
+end
+
+% --- Inverse Fourier Transform (Reconstruction - Ex 1) ---
+% x_rec(t) = (1/2pi) * Integral [ X(jw) * exp(jwt) dw ]
+x_recon = zeros(size(t));
+
+if ~Solve_System_Response
+    fprintf('Computing Inverse Transform (Reconstruction)...\n');
+    for k = 1:length(t)
+        x_recon(k) = (1/(2*pi)) * trapz(w, X_jw .* exp(1j * w * t(k)));
+    end
+end
+
+% =========================================================================
+% [3] SYSTEM RESPONSE (Exercise 2 Logic)
+% =========================================================================
+y_t = zeros(size(t));
+if Solve_System_Response
+    fprintf('Computing System Response y(t)...\n');
+    
+    % 1. Evaluate H(jw) by substituting s = jw
+    H_jw = H_s(1j * w);
+    
+    % 2. Multiply in Frequency Domain: Y(jw) = X(jw) * H(jw)
+    Y_jw = X_jw .* H_jw;
+    
+    % 3. Inverse FT to get Output y(t)
+    for k = 1:length(t)
+        y_t(k) = (1/(2*pi)) * trapz(w, Y_jw .* exp(1j * w * t(k)));
+    end
+end
+
+% =========================================================================
+% [4] PLOTTING RESULTS
+% =========================================================================
+figure('Name', 'Week 8 Analysis', 'Color', 'k');
+
+% Plot 1: Original Signal
+subplot(3,2,1);
+plot(t, x_t, 'b', 'LineWidth', 2); grid on;
+title('Original Signal x(t)'); xlabel('Time (s)'); xlim([-5 5]);
+
+% Plot 2: Magnitude Spectrum |X(jw)|
+subplot(3,2,3);
+plot(w, abs(X_jw), 'r', 'LineWidth', 1.5); grid on;
+title('Magnitude Spectrum |X(j\omega)|'); xlabel('\omega (rad/s)');
+
+% Plot 3: Phase Spectrum <X(jw)
+subplot(3,2,4);
+plot(w, angle(X_jw), 'm', 'LineWidth', 1.5); grid on;
+title('Phase Spectrum \angle X(j\omega)'); xlabel('\omega (rad/s)');
+
+% Plot 4: Reconstruction OR System Response
+subplot(3,1,3);
+if Solve_System_Response
+    % Plot Output y(t) for Ex 2
+    plot(t, real(y_t), 'w', 'LineWidth', 2); hold on;
+    title('System Response y(t) (Zero-State Response)');
+    legend('Output y(t)');
+else
+    % Plot Reconstruction for Ex 1
+    plot(t, real(x_recon), 'k', 'LineWidth', 2); hold on;
+    plot(t, x_t, 'g--', 'LineWidth', 1.5);
+    title('Signal Reconstruction (Inverse FT)');
+    legend('Reconstructed', 'Original');
+end
+grid on; xlabel('Time (s)'); xlim([-5 5]);
